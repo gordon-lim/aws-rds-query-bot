@@ -108,7 +108,7 @@ Once connected, the chat interface allows users to ask natural language question
 ## Installation (for local development)
 
 ```bash
-git clone https://github.com/your-repo/aws-rds-query-bot.git
+git clone https://github.com/gordon-lim/aws-rds-query-bot.git
 cd aws-rds-query-bot
 pip install -r requirements.txt
 uvicorn main:app --reload
