@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+env/
+venv/
+
+# FastAPI / general
+*.db
+*.sqlite3
+
+# Ignore environment variables
+.env
+
+# Ignore VSCode settings
+.vscode/

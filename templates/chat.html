@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>RDS Bot</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔵</text></svg>">
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <style>
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-thumb { background-color: #cbd5e0; border-radius: 4px; }
+  </style>
+</head>
+<body class="bg-gray-900 text-white h-screen flex flex-col">
+
+<!-- INTRO MODAL -->
+<div id="introModal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+    <div class="bg-white text-gray-800 rounded-lg p-8 max-w-lg w-full space-y-6">
+      <h2 class="text-2xl font-bold text-center">Welcome to the RDS Query App 🚀</h2>
+      <p class="text-center">This app lets you query your AWS RDS configurations easily.</p>
+  
+      <form id="awsCredentialsForm" class="space-y-4">
+        <div>
+          <label class="block text-sm font-semibold mb-1">AWS Access Key ID</label>
+          <input type="text" id="awsAccessKeyId" required class="w-full p-2 border rounded bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400">
+        </div>
+        <div>
+          <label class="block text-sm font-semibold mb-1">AWS Secret Access Key</label>
+          <input type="password" id="awsSecretAccessKey" required class="w-full p-2 border rounded bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400">
+        </div>
+  
+        <!-- 🔥 Two Buttons -->
+        <div class="flex justify-between gap-4 pt-4">
+          <button type="button" id="loadMockData" class="w-1/2 bg-gray-400 text-white py-2 rounded hover:bg-gray-500 transition">
+            Load Mock Data
+          </button>
+          <button type="submit" class="w-1/2 bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition">
+            Continue
+          </button>
+        </div>
+      </form>
+  
+      <!-- Error Message -->
+      <div id="awsErrorMessage" class="text-red-500 text-center mt-4 hidden">
+        Invalid AWS credentials. Please try again.
+      </div>
+    </div>
+  </div>
+  
+
+  <!-- CHAT HISTORY SCROLLABLE AREA -->
+  <div class="flex-1 overflow-y-auto px-6 py-4 space-y-4" id="chatbox">
+    {% for msg in chat_history %}
+      {% if msg.role == "user" %}
+        <div class="text-right">
+          <div class="inline-block bg-blue-600 text-white p-3 rounded-xl max-w-2xl break-words">
+            {{ msg.content }}
+          </div>
+        </div>
+      {% elif msg.role == "assistant" %}
+        <div class="text-left">
+          <div class="inline-block bg-gray-700 text-white p-3 rounded-xl max-w-2xl break-words">
+            {{ msg.content }}
+          </div>
+        </div>
+      {% endif %}
+    {% endfor %}
+  </div>
+
+  <!-- INPUT BAR -->
+  <form id="chat-form" class="p-4 bg-gray-800 border-t border-gray-700 flex gap-3">
+    <input 
+      type="text" 
+      id="user_message" 
+      placeholder="Ask something..." 
+      class="flex-1 p-3 rounded-xl bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+      autocomplete="off"
+      required
+    >
+    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition">
+      Send
+    </button>
+  </form>
+
+  <script>
+    const introModal = document.getElementById('introModal');
+    const awsForm = document.getElementById('awsCredentialsForm');
+    const form = document.getElementById('chat-form');
+    const chatbox = document.getElementById('chatbox');
+    const userInput = document.getElementById('user_message');
+  
+    // Handle AWS Credentials Form
+    awsForm.addEventListener('submit', async function(event) {
+        event.preventDefault();
+
+        const accessKeyId = document.getElementById('awsAccessKeyId').value.trim();
+        const secretAccessKey = document.getElementById('awsSecretAccessKey').value.trim();
+        const awsErrorMessage = document.getElementById('awsErrorMessage');
+
+        if (accessKeyId && secretAccessKey) {
+            window.awsCredentials = {
+            accessKeyId: accessKeyId,
+            secretAccessKey: secretAccessKey
+            };
+
+            try {
+            const response = await fetch("/set-aws-credentials", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(window.awsCredentials)
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                // ✅ Credentials are valid
+                introModal.style.display = 'none';  // Hide the modal
+                awsErrorMessage.classList.add('hidden');
+
+                // 🔥 Add assistant intro message dynamically
+                chatbox.innerHTML += `
+                <div class="text-left">
+                    <div class="inline-block bg-gray-700 text-white p-3 rounded-xl max-w-2xl break-words">
+                    ${escapeHtml(data.intro_message)}
+                    </div>
+                </div>
+                `;
+                chatbox.scrollTop = chatbox.scrollHeight;
+            } else {
+                awsErrorMessage.classList.remove('hidden');
+            }
+            } catch (error) {
+            console.error('Error setting AWS credentials:', error);
+            awsErrorMessage.classList.remove('hidden');
+            }
+        } else {
+            awsErrorMessage.textContent = 'Please fill in both fields.';
+            awsErrorMessage.classList.remove('hidden');
+        }
+        });
+
+
+    const mockButton = document.getElementById('loadMockData');
+
+    mockButton.addEventListener('click', async function () {
+    // 🚀 Send a request to the backend to load mock data
+    const response = await fetch("/load-mock-data", { method: "POST" });
+    const data = await response.json();
+
+    if (data.success) {
+        // ✅ Hide modal and show intro message
+        introModal.style.display = 'none';
+        
+        // Add assistant intro message dynamically
+        chatbox.innerHTML += `
+        <div class="text-left">
+            <div class="inline-block bg-gray-700 text-white p-3 rounded-xl max-w-2xl break-words">
+            ${escapeHtml(data.intro_message)}
+            </div>
+        </div>
+        `;
+        chatbox.scrollTop = chatbox.scrollHeight;
+    } else {
+        alert('Failed to load mock data.');
+    }
+    });
+
+  
+    // Handle Chat Form
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();  // Prevent page reload for chat
+  
+      const userMessage = userInput.value.trim();
+      if (!userMessage) return;
+  
+      // Show user message immediately
+      chatbox.innerHTML += `
+        <div class="text-right">
+          <div class="inline-block bg-blue-600 text-white p-3 rounded-xl max-w-2xl break-words">
+            ${escapeHtml(userMessage)}
+          </div>
+        </div>
+      `;
+  
+      chatbox.scrollTop = chatbox.scrollHeight;
+      userInput.value = '';  // Clear input
+  
+      // Optional: show "Assistant is typing..."
+      const typingIndicator = document.createElement('div');
+      typingIndicator.innerHTML = `
+        <div class="text-left" id="typing">
+          <div class="inline-block bg-gray-700 text-white p-3 rounded-xl max-w-2xl break-words">
+            Assistant is typing...
+          </div>
+        </div>
+      `;
+      chatbox.appendChild(typingIndicator);
+      chatbox.scrollTop = chatbox.scrollHeight;
+  
+      try {
+        const response = await fetch("/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: `user_message=${encodeURIComponent(userMessage)}`
+        });
+  
+        const data = await response.json();
+  
+        // Remove typing indicator
+        const typing = document.getElementById('typing');
+        if (typing) typing.remove();
+  
+        // Show assistant's response
+        chatbox.innerHTML += `
+          <div class="text-left">
+            <div class="inline-block bg-gray-700 text-white p-3 rounded-xl max-w-2xl break-words">
+              ${escapeHtml(data.ai_response)}
+            </div>
+          </div>
+        `;
+  
+        chatbox.scrollTop = chatbox.scrollHeight;
+      } catch (error) {
+        console.error('Error:', error);
+      }
+    });
+  
+    // Helper to escape HTML
+    function escapeHtml(unsafe) {
+      return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+  </script>
+  
+</body>
+</html>
