@@ -116,7 +116,7 @@ uvicorn main:app --reload
 
 You will need:
 - OPENAI_API_KEY (in `.env`): An OpenAI API key (for LLM communication)
-- SECRET_KEY (also in `.env`): For fastai session
+- SECRET_KEY (also in `.env`): For fastapi session
 - AWS credentials (unless using mock data)
 
 ---
